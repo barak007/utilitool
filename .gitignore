@@ -5,8 +5,6 @@ cjs
 .idea
 .history
 .DS_Store
-runtime.lib.js
-runtime-legacy.lib.js
 
 # Dependency directories
 node_modules/
