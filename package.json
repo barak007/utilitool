@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc",
     "prepack": "yarn build",
-    "test": "mocha test/**.spec.ts -r @ts-tools/node/r"
+    "test": "mocha test/**.spec.ts -r @ts-tools/node/r",
+    "publish-patch": "npm version patch && npm publish"
   },
   "author": "",
   "license": "MIT",
