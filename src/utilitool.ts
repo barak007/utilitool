@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { join, dirname, basename, extname, parse } from "path";
+import validate from "validate-npm-package-name";
 import {
   findConfigFile,
   readJsonConfigFile,
@@ -85,10 +86,16 @@ function readAndParseConfigFile(filePath: string): ParsedCommandLine {
 function getPackageNameFromFile(filePath: string) {
   const fileName = basename(filePath);
   const name = parse(fileName).name;
-  if (name.match(/[a-zA-Z][a-zA-Z0-1-_]+/)) {
+  const { validForNewPackages, errors } = validate(name);
+
+  if (validForNewPackages) {
     return name;
   } else {
-    throw new Error("Invalid file utilitool fileName");
+    throw new Error(
+      `Invalid utilitool entry fileName.${
+        errors ? "\n" + errors?.join("\n") : ""
+      }`
+    );
   }
 }
 
