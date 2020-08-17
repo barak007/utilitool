@@ -1,7 +1,7 @@
 {
   "name": "utilitool",
-  "version": "1.0.0",
-  "description": "Utility for creating utils packages",
+  "version": "0.0.1",
+  "description": "Utility for automating package publishing",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
