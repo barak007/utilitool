@@ -12,13 +12,13 @@ import type { PackageJson } from "type-fest";
 import type { PackageData } from "./types";
 
 interface Options {
-  projectRoot: string;
+  project: string;
 }
 
-export async function utilitool({ projectRoot }: Options) {
-  const tsConfigPath = findConfigFile(projectRoot, sys.fileExists);
+export async function utilitool({ project }: Options) {
+  const tsConfigPath = findConfigFile(project, sys.fileExists);
   const packageJSONPath = findConfigFile(
-    projectRoot,
+    project,
     sys.fileExists,
     "package.json"
   );

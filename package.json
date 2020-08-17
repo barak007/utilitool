@@ -3,8 +3,13 @@
   "version": "0.0.1",
   "description": "Utility for automating package publishing",
   "main": "dist/index.js",
+  "bin": {
+    "utilitool": "./dist/utilitool-cli.js",
+    "utl": "./dist/utilitool-cli.js"
+  },
   "scripts": {
     "build": "tsc",
+    "prepack": "yarn build",
     "test": "mocha test/**.spec.ts -r @ts-tools/node/r"
   },
   "author": "",
