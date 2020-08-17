@@ -7,6 +7,7 @@
     "utilitool": "./dist/utilitool-cli.js",
     "utl": "./dist/utilitool-cli.js"
   },
+  "repository": "https://github.com/barak007/utilitool",
   "scripts": {
     "build": "tsc",
     "prepack": "yarn build",
