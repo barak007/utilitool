@@ -56,13 +56,10 @@ export async function utilitool(options: Partial<Options>) {
   }
   const fullOutDir = join(project, outDir);
 
-  sys.createDirectory(fullOutDir);
-
   logger.debug(Array.from(packagesData).map(([name]) => name));
 
   for (const packageData of packagesData.values()) {
     const packageDir = join(fullOutDir, packageData.name);
-    sys.createDirectory(packageDir);
 
     for (const filePath of packageData.files) {
       const sourceText = sys.readFile(filePath, "utf8");
@@ -177,5 +174,3 @@ function preparePackageData(
     packageData.files.add(filePath);
   }
 }
-
-
