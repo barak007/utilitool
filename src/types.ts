@@ -1,9 +1,8 @@
+type version = string;
+type npmPackageName = string;
+
 export interface PackageData {
   name: string;
   files: Set<string>;
-}
-
-export interface PackageJSON {
-  name: string;
-  version: string;
+  dependencies: Map<npmPackageName, version>;
 }

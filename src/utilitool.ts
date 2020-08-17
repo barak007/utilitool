@@ -1,4 +1,3 @@
-import { readFileSync } from "fs";
 import { join, dirname, basename, extname, parse } from "path";
 import validate from "validate-npm-package-name";
 import {
@@ -11,12 +10,28 @@ import {
 } from "typescript";
 import type { PackageJson } from "type-fest";
 import type { PackageData } from "./types";
+import { createLogger, LogLevel } from "./log-level";
+import { parseCode, findImportRanges } from "./ts-imports";
 
 interface Options {
   project: string;
+  outDir: string;
+  logLevel: LogLevel;
 }
 
-export async function utilitool({ project }: Options) {
+export const defaultOptions: Options = {
+  project: process.cwd(),
+  outDir: "utilitool-packages",
+  logLevel: "debug",
+};
+
+export async function utilitool(options: Partial<Options>) {
+  const { project, outDir, logLevel } = { ...defaultOptions, ...options };
+
+  const logger = createLogger(logLevel);
+
+  logger.log(`utilitool is running on project at: ${project}`);
+
   const tsConfigPath = findConfigFile(project, sys.fileExists);
   const packageJSONPath = findConfigFile(
     project,
@@ -24,35 +39,74 @@ export async function utilitool({ project }: Options) {
     "package.json"
   );
 
-  console.log("tsconfigPath", tsConfigPath);
-  console.log("packageJSONPath", packageJSONPath);
+  logger.debug("tsconfigPath", tsConfigPath);
+  logger.debug("rootPackageJSONPath", packageJSONPath);
 
   if (!tsConfigPath || !packageJSONPath) {
     return;
   }
 
   const tsconfig = readAndParseConfigFile(tsConfigPath);
-  const packageJSON = loadPackageJSON(packageJSONPath);
-
-  const sharedPackageData = getSharedPackagesData();
+  const rootPackageJSON = loadPackageJSON(packageJSONPath);
 
   const packagesData = new Map<string, PackageData>();
 
   for (const filePath of tsconfig.fileNames) {
-    preparePackageData(filePath, packageJSON, packagesData);
+    preparePackageData(filePath, rootPackageJSON, packagesData);
   }
+  const fullOutDir = join(project, outDir);
 
-  console.log(Array.from(packagesData).map(([name]) => name));
+  sys.createDirectory(fullOutDir);
 
-  for (const [filePath] of packagesData) {
-    const source = sys.readFile(filePath, "utf8");
-    if (source) {
-      const res = transpileModule(source, {
-        compilerOptions: tsconfig.options,
-        transformers: { before: [] },
-      });
+  logger.debug(Array.from(packagesData).map(([name]) => name));
+
+  for (const packageData of packagesData.values()) {
+    const packageDir = join(fullOutDir, packageData.name);
+    sys.createDirectory(packageDir);
+
+    for (const filePath of packageData.files) {
+      const sourceText = sys.readFile(filePath, "utf8");
+      logger.debug("process", filePath, sourceText);
+      if (sourceText) {
+        const sourceFile = parseCode(filePath, sourceText);
+        const importRanges = findImportRanges(sourceFile);
+        let npmImportCount = 0;
+
+        for (const { text } of importRanges) {
+          const npmDepVersion = rootPackageJSON.dependencies?.[text];
+          if (npmDepVersion) {
+            packageData.dependencies.set(text, npmDepVersion);
+            npmImportCount++;
+          }
+        }
+
+        if (importRanges.length !== npmImportCount) {
+          throw new Error("Non npm packages imports are not supported for now");
+        }
+
+        logger.debug(
+          filePath,
+          importRanges.map(({ text }) => text)
+        );
+      }
     }
+
+    sys.writeFile(
+      join(packageDir, "package.json"),
+      JSON.stringify(createPackageJson(rootPackageJSON, packageData))
+    );
   }
+}
+
+function createPackageJson(
+  rootPackageJSON: PackageJson,
+  packageData: PackageData
+) {
+  return {
+    name: packageData.name,
+    version: rootPackageJSON.version,
+    dependencies: Object.fromEntries(packageData.dependencies.entries()),
+  };
 }
 
 function getSharedPackagesData() {
@@ -61,7 +115,7 @@ function getSharedPackagesData() {
   };
 }
 
-function loadPackageJSON(packageJSONPath: string) {
+function loadPackageJSON(packageJSONPath: string): PackageJson {
   const content = sys.readFile(packageJSONPath, "utf8");
   if (!content) {
     throw new Error("Cannot read " + packageJSONPath);
@@ -114,6 +168,7 @@ function preparePackageData(
   let packageData = packages.get(name);
   if (!packageData) {
     packageData = {
+      dependencies: new Map(),
       files: new Set([filePath]),
       name,
     };
@@ -123,13 +178,4 @@ function preparePackageData(
   }
 }
 
-function logIntro() {
-  console.log(
-    `%c${readFileSync(join(__dirname, "../banner.txt"), "utf8")}`,
-    "font-family:monospace;"
-  );
 
-  console.log("Processing files...");
-  console.log("Creating packages...");
-  console.log("Publishing...");
-}
