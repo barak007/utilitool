@@ -1,18 +1,15 @@
 import { readFileSync } from "fs";
 import { join, dirname, basename, extname, parse } from "path";
 import {
-  createCompilerHost,
   findConfigFile,
   readJsonConfigFile,
   parseJsonSourceFileConfigFileContent,
   sys,
   ParsedCommandLine,
-  preProcessFile,
-  transpile,
   transpileModule,
 } from "typescript";
-
-import { PackageData, PackageJSON } from "./types";
+import type { PackageJson } from "type-fest";
+import type { PackageData } from "./types";
 
 interface Options {
   projectRoot: string;
@@ -57,6 +54,12 @@ export async function utilitool({ projectRoot }: Options) {
   }
 }
 
+function getSharedPackagesData() {
+  return {
+    baseVersion: "0.0.0",
+  };
+}
+
 function loadPackageJSON(packageJSONPath: string) {
   const content = sys.readFile(packageJSONPath, "utf8");
   if (!content) {
@@ -79,12 +82,6 @@ function readAndParseConfigFile(filePath: string): ParsedCommandLine {
   );
 }
 
-function getSharedPackagesData() {
-  return {
-    baseVersion: "0.0.0",
-  };
-}
-
 function getPackageNameFromFile(filePath: string) {
   const fileName = basename(filePath);
   const name = parse(fileName).name;
@@ -95,14 +92,14 @@ function getPackageNameFromFile(filePath: string) {
   }
 }
 
-function getFullPackageName(filePath: string, packageJSON: PackageJSON) {
+function getFullPackageName(filePath: string, packageJSON: PackageJson) {
   const name = getPackageNameFromFile(filePath);
   return packageJSON.name + "-" + name;
 }
 
 function preparePackageData(
   filePath: string,
-  packageJSON: PackageJSON,
+  packageJSON: PackageJson,
   packages: Map<string, PackageData>
 ) {
   const name = getFullPackageName(filePath, packageJSON);
