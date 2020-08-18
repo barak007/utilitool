@@ -49,7 +49,7 @@ export async function utilitool(options: Partial<Options>) {
     for (const filePath of packageData.files) {
       const sourceText = sys.readFile(filePath, "utf8");
       if (sourceText) {
-        logger.debug("process", filePath, sourceText);
+        logger.debug("process", filePath);
         const fileResolvedDependencies = new Map();
         const sourceFile = parseCode(filePath, sourceText);
         const importRanges = findImportRanges(sourceFile);
@@ -66,12 +66,15 @@ export async function utilitool(options: Partial<Options>) {
         const newSource = remapImports(sourceText, importRanges, (request) =>
           fileResolvedDependencies.get(request)
         );
-        const filePathInPackage = join(packageDir, relative(project, filePath));
+        const relativeFilePathInPackage = relative(project, filePath);
+        const filePathInPackage = join(packageDir);
 
         sys.writeFile(filePathInPackage, newSource);
-        logger.debug(`Write file to package ${filePathInPackage}`);
+        logger.debug(
+          `Write file "${relativeFilePathInPackage}" to package "${packageDir}"`
+        );
       } else {
-        throw new Error(`Could not read file ${filePath} or file is empty`);
+        throw new Error(`Could not read file "${filePath}" or file is empty`);
       }
     }
 
