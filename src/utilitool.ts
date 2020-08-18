@@ -34,12 +34,11 @@ export async function utilitool(options: Partial<Options>) {
 
   const { tsconfig, rootPackageJSON } = loadProjectConfigurations(project);
 
-  const packagesData = new Map<string, PackageData>();
-  const fileToPackage = new Map<string, Set<PackageData>>();
+  const { packagesData, fileToPackage } = createPackagesData(
+    tsconfig,
+    rootPackageJSON
+  );
 
-  for (const filePath of tsconfig.fileNames) {
-    preparePackageData(filePath, rootPackageJSON, packagesData, fileToPackage);
-  }
   const fullOutDir = join(project, outDir);
 
   logger.debug(Array.from(packagesData).map(([name]) => name));
@@ -48,10 +47,10 @@ export async function utilitool(options: Partial<Options>) {
     const packageDir = join(fullOutDir, packageData.name);
 
     for (const filePath of packageData.files) {
-      const fileResolvedDependencies = new Map();
       const sourceText = sys.readFile(filePath, "utf8");
-      logger.debug("process", filePath, sourceText);
       if (sourceText) {
+        logger.debug("process", filePath, sourceText);
+        const fileResolvedDependencies = new Map();
         const sourceFile = parseCode(filePath, sourceText);
         const importRanges = findImportRanges(sourceFile);
 
@@ -71,6 +70,8 @@ export async function utilitool(options: Partial<Options>) {
 
         sys.writeFile(filePathInPackage, newSource);
         logger.debug(`Write file to package ${filePathInPackage}`);
+      } else {
+        throw new Error(`Could not read file ${filePath} or file is empty`);
       }
     }
 
@@ -79,6 +80,19 @@ export async function utilitool(options: Partial<Options>) {
       JSON.stringify(createPackageJson(rootPackageJSON, packageData))
     );
   }
+}
+
+function createPackagesData(
+  tsconfig: ParsedCommandLine,
+  rootPackageJSON: PackageJson
+) {
+  const packagesData = new Map<string, PackageData>();
+  const fileToPackage = new Map<string, Set<PackageData>>();
+
+  for (const filePath of tsconfig.fileNames) {
+    preparePackageData(filePath, rootPackageJSON, packagesData, fileToPackage);
+  }
+  return { packagesData, fileToPackage };
 }
 
 function loadProjectConfigurations(project: string) {
