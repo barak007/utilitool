@@ -11,7 +11,12 @@ import {
 import type { PackageJson } from "type-fest";
 import type { PackageData } from "./types";
 import { createLogger, LogLevel } from "./log-level";
-import { parseCode, findImportRanges, remapImports } from "./ts-imports";
+import {
+  parseCode,
+  findImportRanges,
+  remapImports,
+  ITextRange,
+} from "./ts-imports";
 
 interface Options {
   project: string;
@@ -119,7 +124,7 @@ function loadProjectConfigurations(project: string) {
 }
 
 function processFileImports(
-  importRanges: import("c:/projects/utilitool/src/ts-imports").ITextRange[],
+  importRanges: ITextRange[],
   filePath: string,
   tsconfig: ParsedCommandLine,
   packageData: PackageData,
