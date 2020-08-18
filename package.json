@@ -1,6 +1,6 @@
 {
   "name": "utilitool",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Utility for automating package publishing",
   "main": "dist/index.js",
   "bin": {
