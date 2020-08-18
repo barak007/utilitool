@@ -85,7 +85,8 @@ export async function utilitool(options: UtilitoolOptions) {
 
     sys.writeFile(
       join(packageDir, "package.json"),
-      JSON.stringify(createPackageJson(rootPackageJSON, packageData))
+      JSON.stringify(createPackageJson(rootPackageJSON, packageData), null, 4) +
+        "\n"
     );
   }
 }
