@@ -180,7 +180,7 @@ function loadPackageJSON(packageJSONPath: string): PackageJson {
   try {
     return JSON.parse(content);
   } catch (e) {
-    e.message = "Failed to parse package.json " + packageJSONPath;
+    e.message = `Failed to parse "${packageJSONPath}" ${e.message}`;
     throw e;
   }
 }
