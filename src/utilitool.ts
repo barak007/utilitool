@@ -104,19 +104,19 @@ function createPackagesData(
   return { packagesData, fileToPackage };
 }
 
-function loadProjectConfigurations(project: string) {
-  const tsConfigPath = findConfigFile(project, sys.fileExists);
+function loadProjectConfigurations(directoryPath: string) {
+  const tsConfigPath = findConfigFile(directoryPath, sys.fileExists);
   const packageJSONPath = findConfigFile(
-    project,
+    directoryPath,
     sys.fileExists,
     "package.json"
   );
 
   if (!packageJSONPath) {
-    throw new Error(`Could not find package.json at ${project}`);
+    throw new Error(`Could not find package.json at ${directoryPath}`);
   }
   if (!tsConfigPath) {
-    throw new Error(`Could not find tsconfig at ${project}`);
+    throw new Error(`Could not find tsconfig at ${directoryPath}`);
   }
 
   const tsconfig = readAndParseConfigFile(tsConfigPath);
