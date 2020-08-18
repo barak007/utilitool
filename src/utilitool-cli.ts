@@ -3,6 +3,7 @@
 import yargs from "yargs";
 import { utilitool, defaultOptions } from "./utilitool";
 import { logIntro } from "./show-banner";
+import { resolve } from "path";
 
 const {
   argv: { project, outDir, logLevel },
@@ -29,7 +30,7 @@ const {
 logIntro();
 
 utilitool({
-  project,
+  project: resolve(project),
   outDir,
   logLevel,
 }).catch((error) => {

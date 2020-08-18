@@ -1,4 +1,4 @@
-import { join, dirname, basename, extname, parse, relative } from "path";
+import { join, dirname, basename, parse, relative } from "path";
 import validate from "validate-npm-package-name";
 import {
   findConfigFile,
@@ -18,19 +18,19 @@ import {
   ITextRange,
 } from "./ts-imports";
 
-interface Options {
-  project: string;
-  outDir: string;
-  logLevel: LogLevel;
+interface UtilitoolOptions {
+  project?: string;
+  outDir?: string;
+  logLevel?: LogLevel;
 }
 
-export const defaultOptions: Options = {
+export const defaultOptions: Required<UtilitoolOptions> = {
   project: process.cwd(),
   outDir: "utilitool-packages",
   logLevel: "debug",
 };
 
-export async function utilitool(options: Partial<Options>) {
+export async function utilitool(options: UtilitoolOptions) {
   const { project, outDir, logLevel } = { ...defaultOptions, ...options };
 
   const logger = createLogger(logLevel);
