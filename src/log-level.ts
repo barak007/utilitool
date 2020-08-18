@@ -1,4 +1,4 @@
-export type LogLevel = "verbose" | "error" | "warn" | "debug" | "silent";
+export type LogLevel = "debug" | "verbose" | "warn" | "error" | "silent";
 export type Logger = ReturnType<typeof createLogger>;
 
 const debug = console.log.bind(console, "[Debug]");
