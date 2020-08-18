@@ -1,5 +1,5 @@
 import { join, dirname, basename, parse, relative } from "path";
-import validate from "validate-npm-package-name";
+import validateNpmPackageName from "validate-npm-package-name";
 import {
   findConfigFile,
   readJsonConfigFile,
@@ -18,7 +18,7 @@ import {
   ITextRange,
 } from "./ts-imports";
 
-interface UtilitoolOptions {
+export interface UtilitoolOptions {
   project?: string;
   outDir?: string;
   logLevel?: LogLevel;
@@ -196,7 +196,7 @@ function readAndParseConfigFile(filePath: string): ParsedCommandLine {
 function getPackageNameFromFile(filePath: string) {
   const fileName = basename(filePath);
   const name = parse(fileName).name;
-  const { validForNewPackages, errors } = validate(name);
+  const { validForNewPackages, errors } = validateNpmPackageName(name);
 
   if (validForNewPackages) {
     return name;
