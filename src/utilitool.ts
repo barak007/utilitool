@@ -1,4 +1,4 @@
-import { join, dirname, basename, parse, relative } from "path";
+import { join, dirname, basename, parse, relative, resolve } from "path";
 import validateNpmPackageName from "validate-npm-package-name";
 import {
   findConfigFile,
@@ -44,7 +44,7 @@ export async function utilitool(options: UtilitoolOptions) {
     rootPackageJSON
   );
 
-  const fullOutDir = join(project, outDir);
+  const fullOutDir = resolve(project, outDir);
 
   logger.debug(Array.from(packagesData).map(([name]) => name));
 
