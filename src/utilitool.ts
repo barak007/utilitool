@@ -67,11 +67,11 @@ export async function utilitool(options: Partial<Options>) {
           fileResolvedDependencies.get(request)
         );
         const relativeFilePathInPackage = relative(project, filePath);
-        const filePathInPackage = join(packageDir);
+        const filePathInPackage = join(packageDir, relativeFilePathInPackage);
 
         sys.writeFile(filePathInPackage, newSource);
         logger.debug(
-          `Write file "${relativeFilePathInPackage}" to package "${packageDir}"`
+          `Write file "${relativeFilePathInPackage}" to package "${packageData.name}"`
         );
       } else {
         throw new Error(`Could not read file "${filePath}" or file is empty`);
