@@ -12,19 +12,17 @@ describe("utilitool cli", () => {
       project: dir.path,
     });
 
-    console.log(
-      nodeFs.readdirSync(join(dir.path, defaultOptions.outDir, "utils-doit")),
-      "DIRS"
-    );
-
-    console.log(
-      nodeFs.readFileSync(
-        join(dir.path, defaultOptions.outDir, "utils-doit", "package.json"),
-        "utf8"
-      ),
-      "package.json"
-    );
-
+    console.log(getPackageContent(dir.path, "utils-doit"));
+    console.log(getPackageContent(dir.path, "utils-dothat"));
     dir.remove();
   });
 });
+
+function getPackageContent(path: string, name: string) {
+  const dirs = nodeFs.readdirSync(join(path, defaultOptions.outDir, name));
+  const packageJSON = nodeFs.readFileSync(
+    join(path, defaultOptions.outDir, name, "package.json"),
+    "utf8"
+  );
+  return { dirs, packageJSON };
+}

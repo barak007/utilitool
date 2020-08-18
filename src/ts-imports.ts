@@ -60,3 +60,23 @@ function stringLiteralToTextRange(
     text: node.text,
   };
 }
+
+export function remapImports(
+  sourceText: string,
+  importRanges: ITextRange[],
+  remap: (request: string) => string
+): string {
+  let modifiedText = sourceText;
+  let offset = 0;
+  for (const { start, end, text } of importRanges) {
+    const startWithOffset = start + offset;
+    const endWithOffset = end + offset;
+    const newText = remap(text);
+    modifiedText =
+      modifiedText.slice(0, startWithOffset) +
+      newText +
+      modifiedText.slice(endWithOffset);
+    offset += newText.length - text.length;
+  }
+  return modifiedText;
+}

@@ -1,4 +1,4 @@
-import { join, dirname, basename, extname, parse } from "path";
+import { join, dirname, basename, extname, parse, relative } from "path";
 import validate from "validate-npm-package-name";
 import {
   findConfigFile,
@@ -6,12 +6,12 @@ import {
   parseJsonSourceFileConfigFileContent,
   sys,
   ParsedCommandLine,
-  transpileModule,
+  nodeModuleNameResolver,
 } from "typescript";
 import type { PackageJson } from "type-fest";
 import type { PackageData } from "./types";
 import { createLogger, LogLevel } from "./log-level";
-import { parseCode, findImportRanges } from "./ts-imports";
+import { parseCode, findImportRanges, remapImports } from "./ts-imports";
 
 interface Options {
   project: string;
@@ -32,27 +32,13 @@ export async function utilitool(options: Partial<Options>) {
 
   logger.log(`utilitool is running on project at: ${project}`);
 
-  const tsConfigPath = findConfigFile(project, sys.fileExists);
-  const packageJSONPath = findConfigFile(
-    project,
-    sys.fileExists,
-    "package.json"
-  );
-
-  logger.debug("tsconfigPath", tsConfigPath);
-  logger.debug("rootPackageJSONPath", packageJSONPath);
-
-  if (!tsConfigPath || !packageJSONPath) {
-    return;
-  }
-
-  const tsconfig = readAndParseConfigFile(tsConfigPath);
-  const rootPackageJSON = loadPackageJSON(packageJSONPath);
+  const { tsconfig, rootPackageJSON } = loadProjectConfigurations(project);
 
   const packagesData = new Map<string, PackageData>();
+  const fileToPackage = new Map<string, Set<PackageData>>();
 
   for (const filePath of tsconfig.fileNames) {
-    preparePackageData(filePath, rootPackageJSON, packagesData);
+    preparePackageData(filePath, rootPackageJSON, packagesData, fileToPackage);
   }
   const fullOutDir = join(project, outDir);
 
@@ -62,29 +48,29 @@ export async function utilitool(options: Partial<Options>) {
     const packageDir = join(fullOutDir, packageData.name);
 
     for (const filePath of packageData.files) {
+      const fileResolvedDependencies = new Map();
       const sourceText = sys.readFile(filePath, "utf8");
       logger.debug("process", filePath, sourceText);
       if (sourceText) {
         const sourceFile = parseCode(filePath, sourceText);
         const importRanges = findImportRanges(sourceFile);
-        let npmImportCount = 0;
 
-        for (const { text } of importRanges) {
-          const npmDepVersion = rootPackageJSON.dependencies?.[text];
-          if (npmDepVersion) {
-            packageData.dependencies.set(text, npmDepVersion);
-            npmImportCount++;
-          }
-        }
-
-        if (importRanges.length !== npmImportCount) {
-          throw new Error("Non npm packages imports are not supported for now");
-        }
-
-        logger.debug(
+        processFileImports(
+          importRanges,
           filePath,
-          importRanges.map(({ text }) => text)
+          tsconfig,
+          packageData,
+          fileResolvedDependencies,
+          fileToPackage
         );
+
+        const newSource = remapImports(sourceText, importRanges, (request) =>
+          fileResolvedDependencies.get(request)
+        );
+        const filePathInPackage = join(packageDir, relative(project, filePath));
+
+        sys.writeFile(filePathInPackage, newSource);
+        logger.debug(`Write file to package ${filePathInPackage}`);
       }
     }
 
@@ -92,6 +78,63 @@ export async function utilitool(options: Partial<Options>) {
       join(packageDir, "package.json"),
       JSON.stringify(createPackageJson(rootPackageJSON, packageData))
     );
+  }
+}
+
+function loadProjectConfigurations(project: string) {
+  const tsConfigPath = findConfigFile(project, sys.fileExists);
+  const packageJSONPath = findConfigFile(
+    project,
+    sys.fileExists,
+    "package.json"
+  );
+
+  if (!packageJSONPath) {
+    throw new Error(`Could not find package.json at ${project}`);
+  }
+  if (!tsConfigPath) {
+    throw new Error(`Could not find tsconfig at ${project}`);
+  }
+
+  const tsconfig = readAndParseConfigFile(tsConfigPath);
+  const rootPackageJSON = loadPackageJSON(packageJSONPath);
+  return { tsconfig, rootPackageJSON };
+}
+
+function processFileImports(
+  importRanges: import("c:/projects/utilitool/src/ts-imports").ITextRange[],
+  filePath: string,
+  tsconfig: ParsedCommandLine,
+  packageData: PackageData,
+  fileResolvedDependencies: Map<any, any>,
+  fileToPackage: Map<string, Set<PackageData>>
+) {
+  for (const { text } of importRanges) {
+    const { resolvedModule } = nodeModuleNameResolver(
+      text,
+      filePath,
+      tsconfig.options,
+      sys
+    );
+
+    if (resolvedModule?.isExternalLibraryImport && resolvedModule.packageId) {
+      const { name, version } = resolvedModule.packageId;
+      packageData.dependencies.set(name, version);
+      fileResolvedDependencies.set(text, name);
+    } else if (resolvedModule?.resolvedFileName) {
+      const packageDataSet = fileToPackage.get(resolvedModule.resolvedFileName);
+      if (packageDataSet?.size === 1) {
+        const { name, version } = Array.from(packageDataSet)[0];
+        packageData.dependencies.set(name, version);
+        fileResolvedDependencies.set(text, name);
+      } else {
+        throw new Error(
+          `Request that points to a file that contained within multiple packages are not supported yet ${text} from ${filePath}`
+        );
+      }
+    } else {
+      throw new Error(`Failed to resolve request "${text}" from ${filePath}`);
+    }
   }
 }
 
@@ -103,12 +146,6 @@ function createPackageJson(
     name: packageData.name,
     version: rootPackageJSON.version,
     dependencies: Object.fromEntries(packageData.dependencies.entries()),
-  };
-}
-
-function getSharedPackagesData() {
-  return {
-    baseVersion: "0.0.0",
   };
 }
 
@@ -158,7 +195,8 @@ function getFullPackageName(filePath: string, packageJSON: PackageJson) {
 function preparePackageData(
   filePath: string,
   packageJSON: PackageJson,
-  packages: Map<string, PackageData>
+  packages: Map<string, PackageData>,
+  fileToPackage: Map<string, Set<PackageData>>
 ) {
   const name = getFullPackageName(filePath, packageJSON);
 
@@ -168,9 +206,18 @@ function preparePackageData(
       dependencies: new Map(),
       files: new Set([filePath]),
       name,
+      version: packageJSON.version || "",
     };
     packages.set(name, packageData);
   } else {
     packageData.files.add(filePath);
+  }
+
+  let packageSet = fileToPackage.get(filePath);
+  if (!packageSet) {
+    packageSet = new Set([packageData]);
+    fileToPackage.set(filePath, packageSet);
+  } else {
+    packageSet.add(packageData);
   }
 }
