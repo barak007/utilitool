@@ -1,13 +1,14 @@
 export type LogLevel = "debug" | "verbose" | "warn" | "error" | "silent";
 export type Logger = ReturnType<typeof createLogger>;
 
-const debug = console.log.bind(console, "[Debug]");
-const log = console.log.bind(console, "[Info]");
-const warn = console.warn.bind(console, "[Warning]");
-const error = console.error.bind(console, "[Error]");
-const noop = (..._: any[]) => {};
+export function createLogger(level: LogLevel, namespace?: string) {
+  const ns = namespace ? `[${namespace}]` : "";
+  const debug = console.log.bind(console, `[Debug]${ns}`);
+  const log = console.log.bind(console, `[Info]${ns}`);
+  const warn = console.warn.bind(console, `[Warning]${ns}`);
+  const error = console.error.bind(console, `[Error]${ns}`);
+  const noop = (..._: any[]) => {};
 
-export function createLogger(level: LogLevel) {
   if (level === "debug") {
     return { debug, log, warn, error };
   }

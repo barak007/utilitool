@@ -1,5 +1,8 @@
+import { execSync } from "child_process";
 import { join, dirname, basename, parse, relative, resolve } from "path";
 import validateNpmPackageName from "validate-npm-package-name";
+import { nodeFs } from "@file-services/node";
+
 import {
   findConfigFile,
   readJsonConfigFile,
@@ -18,26 +21,32 @@ import {
   ITextRange,
 } from "./ts-imports";
 import { tsCompilerOptionsCopyList } from "./ts-compiler-options-copy-list";
-import { fork, execFileSync, execSync } from "child_process";
 
 export interface UtilitoolOptions {
   project?: string;
   outDir?: string;
   logLevel?: LogLevel;
+  build?: boolean;
+  clean?: boolean;
 }
 
 export const defaultOptions: Required<UtilitoolOptions> = {
   project: process.cwd(),
   outDir: "utilitool-packages",
-  logLevel: "debug",
+  logLevel: "verbose",
+  build: true,
+  clean: true,
 };
 
 export async function utilitool(options: UtilitoolOptions) {
-  const { project, outDir, logLevel } = { ...defaultOptions, ...options };
+  const { project, outDir, logLevel, clean, build } = {
+    ...defaultOptions,
+    ...options,
+  };
 
   const logger = createLogger(logLevel);
 
-  logger.log(`utilitool is running on project at: ${project}`);
+  logger.log(`utilitool is running on: "${project}"`);
 
   const { tsconfig, rootPackageJSON } = loadProjectConfigurations(project);
 
@@ -49,45 +58,51 @@ export async function utilitool(options: UtilitoolOptions) {
     fullOutDir
   );
 
+  if (clean && nodeFs.existsSync(fullOutDir)) {
+    logger.log(`cleaning output directory "${fullOutDir}"`);
+    nodeFs.removeSync(fullOutDir);
+  }
+
   logger.debug(Array.from(packagesData).map(([name]) => name));
 
   for (const packageData of packagesData.values()) {
+    const packageLogger = createLogger(logLevel, packageData.name);
+    packageLogger.log(`init package processing`);
     const { packageDir } = packageData;
 
     for (const filePath of packageData.files) {
       const sourceText = sys.readFile(filePath, "utf8");
-      if (sourceText) {
-        logger.debug("process", filePath);
-        const fileResolvedDependencies = new Map();
-        const sourceFile = parseCode(filePath, sourceText);
-        const importRanges = findImportRanges(sourceFile);
-
-        processFileImports(
-          importRanges,
-          filePath,
-          tsconfig,
-          packageData,
-          fileResolvedDependencies,
-          fileToPackage
-        );
-
-        const newSource = remapImports(sourceText, importRanges, (request) =>
-          fileResolvedDependencies.get(request)
-        );
-        const relativeFilePathInPackage = relative(project, filePath);
-        const filePathInPackage = join(packageDir, relativeFilePathInPackage);
-
-        sys.writeFile(filePathInPackage, newSource);
-        logger.debug(
-          `Write file "${relativeFilePathInPackage}" to package "${packageData.name}"`
-        );
-      } else {
+      packageLogger.debug("process", filePath);
+      if (!sourceText) {
         throw new Error(`Could not read file "${filePath}" or file is empty`);
       }
+      const fileResolvedDependencies = new Map();
+      const sourceFile = parseCode(filePath, sourceText);
+      const importRanges = findImportRanges(sourceFile);
+
+      processFileImports(
+        importRanges,
+        filePath,
+        tsconfig,
+        packageData,
+        fileResolvedDependencies,
+        fileToPackage
+      );
+
+      const newSource = remapImports(sourceText, importRanges, (request) =>
+        fileResolvedDependencies.get(request)
+      );
+      const relativeFilePathInPackage = relative(project, filePath);
+      const filePathInPackage = join(packageDir, relativeFilePathInPackage);
+
+      sys.writeFile(filePathInPackage, newSource);
+      packageLogger.log(`writing file "${relativeFilePathInPackage}"`);
     }
 
+    packageLogger.log(`writing "${packageData.name}" index.ts`);
     writeIndexFile(packageData, project, packageDir);
 
+    packageLogger.log(`writing "${packageData.name}" package.json`);
     sys.writeFile(
       join(packageDir, "package.json"),
       JSON.stringify(createPackageJson(rootPackageJSON, packageData), null, 4) +
@@ -95,9 +110,13 @@ export async function utilitool(options: UtilitoolOptions) {
     );
   }
 
-  writeSharedTsconfig(tsconfig, packagesData, fullOutDir);
+  logger.log(`writing shared tsconfig.json`);
 
-  execSync("tsc", { cwd: fullOutDir });
+  writeSharedTsconfig(tsconfig, packagesData, fullOutDir);
+  if (build) {
+    logger.log(`building newly created projects`);
+    execSync("tsc", { cwd: fullOutDir });
+  }
 }
 
 function writeIndexFile(
