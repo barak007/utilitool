@@ -14,14 +14,11 @@ export function createLogger(level: LogLevel) {
   if (level === "verbose") {
     return { debug: noop, log, warn, error };
   }
-
   if (level === "warn") {
     return { debug: noop, log: noop, warn, error };
   }
-
   if (level === "error") {
     return { debug: noop, log: noop, warn: noop, error };
   }
-
   return { debug: noop, log: noop, error: noop, warn: noop };
 }

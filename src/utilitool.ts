@@ -17,6 +17,8 @@ import {
   remapImports,
   ITextRange,
 } from "./ts-imports";
+import { tsCompilerOptionsCopyList } from "./ts-compiler-options-copy-list";
+import { fork, execFileSync, execSync } from "child_process";
 
 export interface UtilitoolOptions {
   project?: string;
@@ -39,17 +41,18 @@ export async function utilitool(options: UtilitoolOptions) {
 
   const { tsconfig, rootPackageJSON } = loadProjectConfigurations(project);
 
+  const fullOutDir = resolve(project, outDir);
+
   const { packagesData, fileToPackage } = createPackagesData(
     tsconfig,
-    rootPackageJSON
+    rootPackageJSON,
+    fullOutDir
   );
-
-  const fullOutDir = resolve(project, outDir);
 
   logger.debug(Array.from(packagesData).map(([name]) => name));
 
   for (const packageData of packagesData.values()) {
-    const packageDir = join(fullOutDir, packageData.name);
+    const { packageDir } = packageData;
 
     for (const filePath of packageData.files) {
       const sourceText = sys.readFile(filePath, "utf8");
@@ -83,23 +86,91 @@ export async function utilitool(options: UtilitoolOptions) {
       }
     }
 
+    writeIndexFile(packageData, project, packageDir);
+
     sys.writeFile(
       join(packageDir, "package.json"),
       JSON.stringify(createPackageJson(rootPackageJSON, packageData), null, 4) +
         "\n"
     );
   }
+
+  writeSharedTsconfig(tsconfig, packagesData, fullOutDir);
+
+  execSync("tsc", { cwd: fullOutDir });
+}
+
+function writeIndexFile(
+  packageData: PackageData,
+  project: string,
+  packageDir: string
+) {
+  let indexFile = "";
+
+  for (const filePath of packageData.files) {
+    const { dir, name } = parse(filePath);
+    const request =
+      "./" + join(relative(project, dir), name).replace(/\\/g, "/");
+    indexFile += `export * from "${request}"\n`;
+  }
+
+  sys.writeFile(join(packageDir, "index.ts"), indexFile);
+}
+
+function writeSharedTsconfig(
+  tsconfig: ParsedCommandLine,
+  packagesData: Map<string, PackageData>,
+  fullOutDir: string
+) {
+  const paths: Record<string, string[]> = {};
+
+  for (const packageName of packagesData.keys()) {
+    paths[packageName] = ["./" + packageName + "/index.ts"];
+  }
+
+  const rawCompilerOptions = tsconfig.raw?.compilerOptions;
+
+  if (!rawCompilerOptions) {
+    throw new Error("Missing raw tsconfig CompilerOptions");
+  }
+
+  const packageCompilerOptions = copyConfigValues(
+    {
+      baseUrl: "./",
+      paths,
+    },
+    rawCompilerOptions,
+    tsCompilerOptionsCopyList
+  );
+
+  sys.writeFile(
+    join(fullOutDir, "tsconfig.json"),
+    JSON.stringify(
+      {
+        compilerOptions: packageCompilerOptions,
+      },
+      null,
+      4
+    ) + "\n"
+  );
 }
 
 function createPackagesData(
   tsconfig: ParsedCommandLine,
-  rootPackageJSON: PackageJson
+  rootPackageJSON: PackageJson,
+  outDir: string
 ) {
   const packagesData = new Map<string, PackageData>();
   const fileToPackage = new Map<string, Set<PackageData>>();
 
   for (const filePath of tsconfig.fileNames) {
-    preparePackageData(filePath, rootPackageJSON, packagesData, fileToPackage);
+    preparePackageData(
+      filePath,
+      rootPackageJSON,
+      packagesData,
+      fileToPackage,
+      outDir
+    );
   }
   return { packagesData, fileToPackage };
 }
@@ -121,7 +192,7 @@ function loadProjectConfigurations(directoryPath: string) {
 
   const tsconfig = readAndParseConfigFile(tsConfigPath);
   const rootPackageJSON = loadPackageJSON(packageJSONPath);
-  return { tsconfig, rootPackageJSON };
+  return { tsconfig, rootPackageJSON, tsConfigPath, packageJSONPath };
 }
 
 function processFileImports(
@@ -152,11 +223,11 @@ function processFileImports(
         fileResolvedDependencies.set(text, name);
       } else {
         throw new Error(
-          `Request that points to a file that contained within multiple packages are not supported yet ${text} from ${filePath}`
+          `Request that points to a file that contained within multiple packages are not supported yet. "${text}" from "${filePath}"`
         );
       }
     } else {
-      throw new Error(`Failed to resolve request "${text}" from ${filePath}`);
+      throw new Error(`Failed to resolve request "${text}" from "${filePath}"`);
     }
   }
 }
@@ -165,11 +236,34 @@ function createPackageJson(
   rootPackageJSON: PackageJson,
   packageData: PackageData
 ) {
-  return {
-    name: packageData.name,
-    version: rootPackageJSON.version,
-    dependencies: Object.fromEntries(packageData.dependencies.entries()),
-  };
+  return copyConfigValues(
+    {
+      name: packageData.name,
+      dependencies: Object.fromEntries(packageData.dependencies.entries()),
+      main: "index.js",
+    },
+    rootPackageJSON,
+    [
+      "author",
+      "bugs",
+      "contributors",
+      "funding",
+      "license",
+      "maintainers",
+      "repository",
+      "version",
+    ]
+  );
+}
+
+function copyConfigValues<T>(target: T, origin: T, keys: Array<keyof T>) {
+  for (const key of keys) {
+    const value = origin[key];
+    if (value !== undefined) {
+      target[key] = value;
+    }
+  }
+  return target;
 }
 
 function loadPackageJSON(packageJSONPath: string): PackageJson {
@@ -219,13 +313,15 @@ function preparePackageData(
   filePath: string,
   packageJSON: PackageJson,
   packages: Map<string, PackageData>,
-  fileToPackage: Map<string, Set<PackageData>>
+  fileToPackage: Map<string, Set<PackageData>>,
+  outDir: string
 ) {
   const name = getFullPackageName(filePath, packageJSON);
 
   let packageData = packages.get(name);
   if (!packageData) {
     packageData = {
+      packageDir: join(outDir, name),
       dependencies: new Map(),
       files: new Set([filePath]),
       name,
