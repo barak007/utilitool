@@ -1,19 +1,12 @@
 import { execSync } from "child_process";
-import { join, dirname, basename, parse, relative, resolve } from "path";
+import { join, basename, parse, relative, resolve } from "path";
 import validateNpmPackageName from "validate-npm-package-name";
 import { nodeFs } from "@file-services/node";
 
-import {
-  findConfigFile,
-  readJsonConfigFile,
-  parseJsonSourceFileConfigFileContent,
-  sys,
-  ParsedCommandLine,
-  nodeModuleNameResolver,
-} from "typescript";
+import { sys, ParsedCommandLine, nodeModuleNameResolver } from "typescript";
 import type { PackageJson } from "type-fest";
 import type { PackageData } from "./types";
-import { createLogger, LogLevel } from "./log-level";
+import { createLogger, LogLevel, Logger } from "./log-level";
 import {
   parseCode,
   findImportRanges,
@@ -21,6 +14,8 @@ import {
   ITextRange,
 } from "./ts-imports";
 import { tsCompilerOptionsCopyList } from "./ts-compiler-options-copy-list";
+import { loadProjectConfigurations } from "./load-project-configurations";
+import { copyDefinedKeys } from "./copy-defined-keys";
 
 export interface UtilitoolOptions {
   project?: string;
@@ -58,10 +53,7 @@ export async function utilitool(options: UtilitoolOptions) {
     fullOutDir
   );
 
-  if (clean && nodeFs.existsSync(fullOutDir)) {
-    logger.log(`cleaning output directory "${fullOutDir}"`);
-    nodeFs.removeSync(fullOutDir);
-  }
+  cleanOutDir(clean, fullOutDir, logger);
 
   logger.debug(Array.from(packagesData).map(([name]) => name));
 
@@ -113,9 +105,17 @@ export async function utilitool(options: UtilitoolOptions) {
   logger.log(`writing shared tsconfig.json`);
 
   writeSharedTsconfig(tsconfig, packagesData, fullOutDir);
+
   if (build) {
     logger.log(`building newly created projects`);
     execSync("tsc", { cwd: fullOutDir });
+  }
+}
+
+function cleanOutDir(clean: boolean, fullOutDir: string, logger: Logger) {
+  if (clean && nodeFs.existsSync(fullOutDir)) {
+    logger.log(`cleaning output directory "${fullOutDir}"`);
+    nodeFs.removeSync(fullOutDir);
   }
 }
 
@@ -153,7 +153,7 @@ function writeSharedTsconfig(
     throw new Error("Missing raw tsconfig CompilerOptions");
   }
 
-  const packageCompilerOptions = copyConfigValues(
+  const packageCompilerOptions = copyDefinedKeys(
     {
       baseUrl: "./",
       paths,
@@ -192,26 +192,6 @@ function createPackagesData(
     );
   }
   return { packagesData, fileToPackage };
-}
-
-function loadProjectConfigurations(directoryPath: string) {
-  const tsConfigPath = findConfigFile(directoryPath, sys.fileExists);
-  const packageJSONPath = findConfigFile(
-    directoryPath,
-    sys.fileExists,
-    "package.json"
-  );
-
-  if (!packageJSONPath) {
-    throw new Error(`Could not find package.json at ${directoryPath}`);
-  }
-  if (!tsConfigPath) {
-    throw new Error(`Could not find tsconfig at ${directoryPath}`);
-  }
-
-  const tsconfig = readAndParseConfigFile(tsConfigPath);
-  const rootPackageJSON = loadPackageJSON(packageJSONPath);
-  return { tsconfig, rootPackageJSON, tsConfigPath, packageJSONPath };
 }
 
 function processFileImports(
@@ -255,7 +235,7 @@ function createPackageJson(
   rootPackageJSON: PackageJson,
   packageData: PackageData
 ) {
-  return copyConfigValues(
+  return copyDefinedKeys(
     {
       name: packageData.name,
       dependencies: Object.fromEntries(packageData.dependencies.entries()),
@@ -272,38 +252,6 @@ function createPackageJson(
       "repository",
       "version",
     ]
-  );
-}
-
-function copyConfigValues<T>(target: T, origin: T, keys: Array<keyof T>) {
-  for (const key of keys) {
-    const value = origin[key];
-    if (value !== undefined) {
-      target[key] = value;
-    }
-  }
-  return target;
-}
-
-function loadPackageJSON(packageJSONPath: string): PackageJson {
-  const content = sys.readFile(packageJSONPath, "utf8");
-  if (!content) {
-    throw new Error("Cannot read " + packageJSONPath);
-  }
-  try {
-    return JSON.parse(content);
-  } catch (e) {
-    e.message = `Failed to parse "${packageJSONPath}" ${e.message}`;
-    throw e;
-  }
-}
-
-function readAndParseConfigFile(filePath: string): ParsedCommandLine {
-  const jsonSourceFile = readJsonConfigFile(filePath, sys.readFile);
-  return parseJsonSourceFileConfigFileContent(
-    jsonSourceFile,
-    sys,
-    dirname(filePath)
   );
 }
 
