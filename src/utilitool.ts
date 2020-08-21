@@ -5,7 +5,7 @@ import { nodeFs } from "@file-services/node";
 
 import { sys, ParsedCommandLine, nodeModuleNameResolver } from "typescript";
 import type { PackageJson } from "type-fest";
-import type { PackageData } from "./types";
+import type { PackageData, SourceFileData } from "./types";
 import { createLogger, LogLevel, Logger } from "./log-level";
 import {
   parseCode,
@@ -47,7 +47,7 @@ export async function utilitool(options: UtilitoolOptions) {
 
   const fullOutDir = resolve(project, outDir);
 
-  const { packagesData, fileToPackage } = createPackagesData(
+  const { packagesData, sourceFileData, fileToPackage } = createPackagesData(
     tsconfig,
     rootPackageJSON,
     fullOutDir
@@ -63,14 +63,9 @@ export async function utilitool(options: UtilitoolOptions) {
     const { packageDir } = packageData;
 
     for (const filePath of packageData.files) {
-      const sourceText = sys.readFile(filePath, "utf8");
-      packageLogger.debug("process", filePath);
-      if (!sourceText) {
-        throw new Error(`Could not read file "${filePath}" or file is empty`);
-      }
+      const { importRanges, sourceText } = sourceFileData.get(filePath)!;
+
       const fileResolvedDependencies = new Map();
-      const sourceFile = parseCode(filePath, sourceText);
-      const importRanges = findImportRanges(sourceFile);
 
       processFileImports(
         importRanges,
@@ -110,6 +105,18 @@ export async function utilitool(options: UtilitoolOptions) {
     logger.log(`building newly created projects`);
     execSync("tsc", { cwd: fullOutDir });
   }
+}
+
+function createSourceFileData(filePath: string): SourceFileData {
+  const sourceText = sys.readFile(filePath, "utf8");
+  if (!sourceText) {
+    throw new Error(
+      `Could not read source file "${filePath}" or file is empty`
+    );
+  }
+  const sourceFile = parseCode(filePath, sourceText);
+  const importRanges = findImportRanges(sourceFile);
+  return { filePath, sourceText, sourceFile, importRanges };
 }
 
 function cleanOutDir(clean: boolean, fullOutDir: string, logger: Logger) {
@@ -181,8 +188,10 @@ function createPackagesData(
 ) {
   const packagesData = new Map<string, PackageData>();
   const fileToPackage = new Map<string, Set<PackageData>>();
+  const sourceFileData = new Map<string, SourceFileData>();
 
   for (const filePath of tsconfig.fileNames) {
+    sourceFileData.set(filePath, createSourceFileData(filePath));
     preparePackageData(
       filePath,
       rootPackageJSON,
@@ -191,7 +200,7 @@ function createPackagesData(
       outDir
     );
   }
-  return { packagesData, fileToPackage };
+  return { packagesData, fileToPackage, sourceFileData };
 }
 
 function processFileImports(
