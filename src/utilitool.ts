@@ -3,7 +3,7 @@ import { join, basename, parse, relative, resolve } from "path";
 import validateNpmPackageName from "validate-npm-package-name";
 import { nodeFs } from "@file-services/node";
 
-import { sys, ParsedCommandLine, nodeModuleNameResolver } from "typescript";
+import ts, { sys, ParsedCommandLine, nodeModuleNameResolver } from "typescript";
 import type { PackageJson } from "type-fest";
 import type { PackageData, SourceFileData } from "./types";
 import { createLogger, LogLevel, Logger } from "./log-level";
@@ -44,6 +44,8 @@ export async function utilitool(options: UtilitoolOptions) {
   logger.log(`utilitool is running on: "${project}"`);
 
   const { tsconfig, rootPackageJSON } = loadProjectConfigurations(project);
+
+  validateTsconfig(tsconfig);
 
   const fullOutDir = resolve(project, outDir);
 
@@ -90,11 +92,7 @@ export async function utilitool(options: UtilitoolOptions) {
     writeIndexFile(packageData, project, packageDir);
 
     packageLogger.log(`writing "${packageData.name}" package.json`);
-    sys.writeFile(
-      join(packageDir, "package.json"),
-      JSON.stringify(createPackageJson(rootPackageJSON, packageData), null, 4) +
-        "\n"
-    );
+    writePackageJson(packageDir, rootPackageJSON, packageData);
   }
 
   logger.log(`writing shared tsconfig.json`);
@@ -105,6 +103,28 @@ export async function utilitool(options: UtilitoolOptions) {
     logger.log(`building newly created projects`);
     execSync("tsc", { cwd: fullOutDir });
   }
+}
+
+function validateTsconfig(tsconfig: ts.ParsedCommandLine) {
+  const errors = [];
+  if (tsconfig.options.moduleResolution === ts.ModuleResolutionKind.NodeJs) {
+    errors.push(`moduleResolution must be set not "node"`);
+  }
+  if (errors.length) {
+    throw new Error(`tsconfig validation failed:\n${errors.join("\n")}`);
+  }
+}
+
+function writePackageJson(
+  packageDir: string,
+  rootPackageJSON: PackageJson,
+  packageData: PackageData
+) {
+  sys.writeFile(
+    join(packageDir, "package.json"),
+    JSON.stringify(createPackageJson(rootPackageJSON, packageData), null, 4) +
+      "\n"
+  );
 }
 
 function createSourceFileData(filePath: string): SourceFileData {

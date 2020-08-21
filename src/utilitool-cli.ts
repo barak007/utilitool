@@ -6,7 +6,7 @@ import { logIntro } from "./show-banner";
 import { resolve } from "path";
 
 const {
-  argv: { project, outDir, logLevel },
+  argv: { project, outDir, logLevel, build, clean },
 } = yargs
   .option("project", {
     alias: "p",
@@ -17,6 +17,16 @@ const {
     alias: "o",
     default: defaultOptions.outDir,
     description: "output directory for the built packages",
+  })
+  .option("build", {
+    alias: "b",
+    default: defaultOptions.build,
+    description: "build newly created packages",
+  })
+  .option("clean", {
+    alias: "c",
+    default: defaultOptions.clean,
+    description: "remove outDir before start",
   })
   .option("logLevel", {
     alias: "ll",
@@ -33,6 +43,8 @@ utilitool({
   project: resolve(project),
   outDir,
   logLevel,
+  build,
+  clean,
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;
