@@ -24,5 +24,5 @@ function getPackageContent(path: string, name: string) {
     join(path, defaultOptions.outDir, name, "package.json"),
     "utf8"
   );
-  return { dirs, packageJSON };
+  return JSON.stringify({ dirs, packageJSON }, null, 4);
 }

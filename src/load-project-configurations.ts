@@ -1,4 +1,4 @@
-import { dirname } from "path";
+import { dirname, join } from "path";
 import {
   findConfigFile,
   readJsonConfigFile,
@@ -16,6 +16,8 @@ export function loadProjectConfigurations(directoryPath: string) {
     "package.json"
   );
 
+  const license = sys.readFile(join(directoryPath, "LICENSE"));
+
   if (!packageJSONPath) {
     throw new Error(`Could not find package.json at ${directoryPath}`);
   }
@@ -25,7 +27,13 @@ export function loadProjectConfigurations(directoryPath: string) {
 
   const tsconfig = readAndParseConfigFile(tsConfigPath);
   const rootPackageJSON = loadPackageJSON(packageJSONPath);
-  return { tsconfig, rootPackageJSON, tsConfigPath, packageJSONPath };
+  return {
+    tsconfig,
+    rootPackageJSON,
+    tsConfigPath,
+    packageJSONPath,
+    license,
+  };
 }
 
 function readAndParseConfigFile(filePath: string): ParsedCommandLine {

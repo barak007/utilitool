@@ -43,7 +43,9 @@ export async function utilitool(options: UtilitoolOptions) {
 
   logger.log(`utilitool is running on: "${project}"`);
 
-  const { tsconfig, rootPackageJSON } = loadProjectConfigurations(project);
+  const { tsconfig, rootPackageJSON, license } = loadProjectConfigurations(
+    project
+  );
 
   validateTsconfig(tsconfig);
 
@@ -88,11 +90,16 @@ export async function utilitool(options: UtilitoolOptions) {
       packageLogger.log(`writing file "${relativeFilePathInPackage}"`);
     }
 
-    packageLogger.log(`writing "${packageData.name}" index.ts`);
+    packageLogger.log(`writing index.ts`);
     writeIndexFile(packageData, project, packageDir);
 
-    packageLogger.log(`writing "${packageData.name}" package.json`);
+    packageLogger.log(`writing package.json`);
     writePackageJson(packageDir, rootPackageJSON, packageData);
+
+    if (license) {
+      packageLogger.log(`writing LiCENSE`);
+      sys.writeFile(join(packageDir, "LICENSE"), license);
+    }
   }
 
   logger.log(`writing shared tsconfig.json`);
@@ -107,7 +114,7 @@ export async function utilitool(options: UtilitoolOptions) {
 
 function validateTsconfig(tsconfig: ts.ParsedCommandLine) {
   const errors = [];
-  if (tsconfig.options.moduleResolution === ts.ModuleResolutionKind.NodeJs) {
+  if (tsconfig.options.moduleResolution !== ts.ModuleResolutionKind.NodeJs) {
     errors.push(`moduleResolution must be set not "node"`);
   }
   if (errors.length) {
