@@ -86,8 +86,8 @@ export async function utilitool(options: UtilitoolOptions) {
       const relativeFilePathInPackage = relative(project, filePath);
       const filePathInPackage = join(packageDir, relativeFilePathInPackage);
 
-      sys.writeFile(filePathInPackage, newSource);
       packageLogger.log(`writing file "${relativeFilePathInPackage}"`);
+      sys.writeFile(filePathInPackage, newSource);
     }
 
     packageLogger.log(`writing index.ts`);
