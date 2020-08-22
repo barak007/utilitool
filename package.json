@@ -34,5 +34,14 @@
     "create-temp-directory": "^1.1.1",
     "mocha": "^8.1.1",
     "type-fest": "^0.16.0"
-  }
+  },
+  "files": [
+    "src",
+    "dist",
+    "banner.txt",
+    "LICENSE",
+    "package.json",
+    "README.md",
+    "tsconfig.json"
+  ]
 }
