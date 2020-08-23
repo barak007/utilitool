@@ -60,16 +60,7 @@ export async function utilitool(options: UtilitoolOptions) {
 
   logger.log(`utilitool is running on: "${project}"`);
 
-  if (release !== "none") {
-    execSync(
-      `npm version ${release}${
-        message ? ` -m ${JSON.stringify(message)}` : ""
-      }${release.startsWith("pre") ? ` --preid=${prereleaseId}` : ""}${
-        noGitTagVersion ? ` --no-git-tag-version` : ""
-      }`,
-      { cwd: project }
-    );
-  }
+  npmVersionBump(release, message, prereleaseId, noGitTagVersion, project);
 
   const { tsconfig, rootPackageJSON, license } = loadProjectConfigurations(
     project
@@ -138,6 +129,25 @@ export async function utilitool(options: UtilitoolOptions) {
   if (build) {
     logger.log(`building newly created projects`);
     execSync("tsc", { cwd: fullOutDir });
+  }
+}
+
+function npmVersionBump(
+  release: string,
+  message: string,
+  prereleaseId: string,
+  noGitTagVersion: boolean,
+  project: string
+) {
+  if (release !== "none") {
+    execSync(
+      `npm version ${release}${
+        message ? ` -m ${JSON.stringify(message)}` : ""
+      }${release.startsWith("pre") ? ` --preid=${prereleaseId}` : ""}${
+        noGitTagVersion ? ` --no-git-tag-version` : ""
+      }`,
+      { cwd: project }
+    );
   }
 }
 
