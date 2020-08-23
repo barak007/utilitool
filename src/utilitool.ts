@@ -139,14 +139,15 @@ function npmVersionBump(
   noGitTagVersion: boolean,
   project: string
 ) {
+  if (release === "none") {
+    return;
+  }
   const msgArg = message ? ` -m ${JSON.stringify(message)}` : "";
   const preIdArg = release.startsWith("pre") ? ` --preid=${prereleaseId}` : "";
   const noGitArg = noGitTagVersion ? ` --no-git-tag-version` : "";
-  if (release !== "none") {
-    execSync(`npm version ${release}${msgArg}${preIdArg}${noGitArg}`, {
-      cwd: project,
-    });
-  }
+  execSync(`npm version ${release}${msgArg}${preIdArg}${noGitArg}`, {
+    cwd: project,
+  });
 }
 
 function validateTsconfig(tsconfig: ts.ParsedCommandLine) {
