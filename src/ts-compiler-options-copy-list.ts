@@ -1,4 +1,7 @@
-export const tsCompilerOptionsCopyList = [
+import { CompilerOptions } from "typescript";
+import { KnownKeys } from "./types";
+
+export const tsCompilerOptionsCopyList: KnownKeys<CompilerOptions>[] = [
   "allowJs",
   "allowSyntheticDefaultImports",
   "allowUmdGlobalAccess",

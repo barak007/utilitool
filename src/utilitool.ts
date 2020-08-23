@@ -16,6 +16,7 @@ import {
 import { tsCompilerOptionsCopyList } from "./ts-compiler-options-copy-list";
 import { loadProjectConfigurations } from "./load-project-configurations";
 import { copyDefinedKeys } from "./copy-defined-keys";
+
 export interface UtilitoolOptions {
   project?: string;
   outDir?: string;

@@ -32,11 +32,13 @@ const {
     alias: "b",
     default: defaultOptions.build,
     description: "build newly created packages",
+    boolean: true
   })
   .option("clean", {
     alias: "c",
     default: defaultOptions.clean,
     description: "remove outDir before start",
+    boolean: true
   })
   .option("logLevel", {
     alias: "ll",
@@ -47,6 +49,7 @@ const {
     alias: "ngtv",
     default: defaultOptions.noGitTagVersion,
     description: `npm version --no-git-tag-version`,
+    boolean: true
   })
   .option("message", {
     alias: "m",
