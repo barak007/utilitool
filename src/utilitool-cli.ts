@@ -6,7 +6,17 @@ import { logIntro } from "./show-banner";
 import { resolve } from "path";
 
 const {
-  argv: { project, outDir, logLevel, build, clean },
+  argv: {
+    project,
+    outDir,
+    logLevel,
+    build,
+    clean,
+    message,
+    noGitTagVersion,
+    prereleaseId,
+    release,
+  },
 } = yargs
   .option("project", {
     alias: "p",
@@ -33,6 +43,35 @@ const {
     default: defaultOptions.logLevel,
     description: `Logging level - "debug" | "verbose" | "warn" | "error" | "silent"`,
   })
+  .option("noGitTagVersion", {
+    alias: "ngtv",
+    default: defaultOptions.noGitTagVersion,
+    description: `npm version --no-git-tag-version`,
+  })
+  .option("message", {
+    alias: "m",
+    default: defaultOptions.message,
+    description: `npm version message`,
+  })
+  .option("prereleaseId", {
+    alias: "preid",
+    default: defaultOptions.prereleaseId,
+    description: `npm version --preid`,
+  })
+  .option("release", {
+    alias: "r",
+    default: defaultOptions.release,
+    description: `semver release type`,
+    choices: [
+      "patch",
+      "minor",
+      "major",
+      "prepatch",
+      "preminor",
+      "premajor",
+      "prerelease",
+    ],
+  })
   .alias("h", "help")
   .help()
   .strict();
@@ -45,6 +84,10 @@ utilitool({
   logLevel,
   build,
   clean,
+  message,
+  noGitTagVersion,
+  prereleaseId,
+  release,
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;

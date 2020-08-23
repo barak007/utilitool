@@ -10,6 +10,8 @@ describe("utilitool cli", () => {
 
     await utilitool({
       project: dir.path,
+      release: "prepatch",
+      noGitTagVersion: true,
     });
 
     console.log(getPackageContent(dir.path, "utils-doit"));

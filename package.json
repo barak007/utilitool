@@ -11,19 +11,21 @@
   "scripts": {
     "build": "tsc",
     "prepack": "yarn build",
-    "test": "mocha test/**.spec.ts -r @ts-tools/node/r",
+    "test": "mocha test/**.spec.ts --timeout 5000 -r @ts-tools/node/r",
     "publish-patch": "npm version patch && npm publish"
   },
   "author": "Barak Igal",
   "license": "MIT",
   "dependencies": {
     "@file-services/node": "^3.1.1",
+    "semver": "^7.3.2",
     "typescript": "^3.9.7",
     "validate-npm-package-name": "^3.0.0",
     "yargs": "^15.4.1"
   },
   "devDependencies": {
     "@ts-tools/node": "^2.1.0",
+    "@types/semver": "^7.3.3",
     "@types/chai": "^4.2.12",
     "@types/mocha": "^8.0.2",
     "@types/node": "^14.0.27",

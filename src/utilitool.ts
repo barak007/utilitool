@@ -1,8 +1,8 @@
 import { execSync } from "child_process";
 import { join, basename, parse, relative, resolve } from "path";
-import validateNpmPackageName from "validate-npm-package-name";
 import { nodeFs } from "@file-services/node";
-
+import { valid as validateSemver, ReleaseType } from "semver";
+import validateNpmPackageName from "validate-npm-package-name";
 import ts, { sys, ParsedCommandLine, nodeModuleNameResolver } from "typescript";
 import type { PackageJson } from "type-fest";
 import type { PackageData, SourceFileData } from "./types";
@@ -16,13 +16,16 @@ import {
 import { tsCompilerOptionsCopyList } from "./ts-compiler-options-copy-list";
 import { loadProjectConfigurations } from "./load-project-configurations";
 import { copyDefinedKeys } from "./copy-defined-keys";
-
 export interface UtilitoolOptions {
   project?: string;
   outDir?: string;
   logLevel?: LogLevel;
   build?: boolean;
   clean?: boolean;
+  release?: ReleaseType | "";
+  prereleaseId?: string;
+  noGitTagVersion?: boolean;
+  message?: string;
 }
 
 export const defaultOptions: Required<UtilitoolOptions> = {
@@ -31,10 +34,24 @@ export const defaultOptions: Required<UtilitoolOptions> = {
   logLevel: "verbose",
   build: true,
   clean: true,
+  release: "patch",
+  prereleaseId: "beta",
+  noGitTagVersion: false,
+  message: "",
 };
 
 export async function utilitool(options: UtilitoolOptions) {
-  const { project, outDir, logLevel, clean, build } = {
+  const {
+    project,
+    outDir,
+    logLevel,
+    clean,
+    build,
+    release,
+    prereleaseId,
+    noGitTagVersion,
+    message,
+  } = {
     ...defaultOptions,
     ...options,
   };
@@ -43,11 +60,23 @@ export async function utilitool(options: UtilitoolOptions) {
 
   logger.log(`utilitool is running on: "${project}"`);
 
+  if (release) {
+    execSync(
+      `npm version ${release}${
+        message ? ` -m ${JSON.stringify(message)}` : ""
+      }${release.startsWith("pre") ? ` --preid=${prereleaseId}` : ""}${
+        noGitTagVersion ? ` --no-git-tag-version` : ""
+      }`,
+      { cwd: project }
+    );
+  }
+
   const { tsconfig, rootPackageJSON, license } = loadProjectConfigurations(
     project
   );
 
   validateTsconfig(tsconfig);
+  validatePackageJSON(rootPackageJSON);
 
   const fullOutDir = resolve(project, outDir);
 
@@ -115,10 +144,23 @@ export async function utilitool(options: UtilitoolOptions) {
 function validateTsconfig(tsconfig: ts.ParsedCommandLine) {
   const errors = [];
   if (tsconfig.options.moduleResolution !== ts.ModuleResolutionKind.NodeJs) {
-    errors.push(`moduleResolution must be set not "node"`);
+    errors.push(`moduleResolution must be set not "node".`);
   }
   if (errors.length) {
     throw new Error(`tsconfig validation failed:\n${errors.join("\n")}`);
+  }
+}
+
+function validatePackageJSON(packageJSON: PackageJson) {
+  const errors = [];
+  if (!packageJSON.version || !validateSemver(packageJSON.version)) {
+    errors.push(`invalid version "${packageJSON.version}".`);
+  }
+  if (!packageJSON.name) {
+    errors.push(`missing "name" field.`);
+  }
+  if (errors.length) {
+    throw new Error(`package.json validation failed:\n${errors.join("\n")}`);
   }
 }
 
@@ -328,7 +370,7 @@ function preparePackageData(
       dependencies: new Map(),
       files: new Set([filePath]),
       name,
-      version: packageJSON.version || "",
+      version: packageJSON.version!,
     };
     packages.set(name, packageData);
   } else {
