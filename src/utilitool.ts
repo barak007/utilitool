@@ -60,6 +60,8 @@ export async function utilitool(options: UtilitoolOptions) {
 
   logger.log(`utilitool is running on: "${project}"`);
 
+  logger.log(`bumping project version`);
+
   npmVersionBump(release, message, prereleaseId, noGitTagVersion, project);
 
   const { tsconfig, rootPackageJSON, license } = loadProjectConfigurations(
@@ -68,6 +70,8 @@ export async function utilitool(options: UtilitoolOptions) {
 
   validateTsconfig(tsconfig);
   validatePackageJSON(rootPackageJSON);
+
+  logger.log(`using version ${rootPackageJSON.version}`);
 
   const fullOutDir = resolve(project, outDir);
 
