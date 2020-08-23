@@ -22,7 +22,7 @@ export interface UtilitoolOptions {
   logLevel?: LogLevel;
   build?: boolean;
   clean?: boolean;
-  release?: ReleaseType | "";
+  release?: ReleaseType | "none";
   prereleaseId?: string;
   noGitTagVersion?: boolean;
   message?: string;
@@ -60,7 +60,7 @@ export async function utilitool(options: UtilitoolOptions) {
 
   logger.log(`utilitool is running on: "${project}"`);
 
-  if (release) {
+  if (release !== "none") {
     execSync(
       `npm version ${release}${
         message ? ` -m ${JSON.stringify(message)}` : ""

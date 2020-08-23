@@ -61,8 +61,9 @@ const {
   .option("release", {
     alias: "r",
     default: defaultOptions.release,
-    description: `semver release type`,
+    description: `semver release type or "none"`,
     choices: [
+      "none",
       "patch",
       "minor",
       "major",
