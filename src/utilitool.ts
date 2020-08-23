@@ -139,15 +139,13 @@ function npmVersionBump(
   noGitTagVersion: boolean,
   project: string
 ) {
+  const msgArg = message ? ` -m ${JSON.stringify(message)}` : "";
+  const preIdArg = release.startsWith("pre") ? ` --preid=${prereleaseId}` : "";
+  const noGitArg = noGitTagVersion ? ` --no-git-tag-version` : "";
   if (release !== "none") {
-    execSync(
-      `npm version ${release}${
-        message ? ` -m ${JSON.stringify(message)}` : ""
-      }${release.startsWith("pre") ? ` --preid=${prereleaseId}` : ""}${
-        noGitTagVersion ? ` --no-git-tag-version` : ""
-      }`,
-      { cwd: project }
-    );
+    execSync(`npm version ${release}${msgArg}${preIdArg}${noGitArg}`, {
+      cwd: project,
+    });
   }
 }
 
