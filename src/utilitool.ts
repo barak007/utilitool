@@ -143,7 +143,9 @@ function npmVersionBump(
     return;
   }
   const msgArg = message ? ` -m ${JSON.stringify(message)}` : "";
-  const preIdArg = release.startsWith("pre") ? ` --preid=${prereleaseId}` : "";
+  const preIdArg = release.startsWith("pre")
+    ? ` --preid=${JSON.stringify(prereleaseId)}`
+    : "";
   const noGitArg = noGitTagVersion ? ` --no-git-tag-version` : "";
   execSync(`npm version ${release}${msgArg}${preIdArg}${noGitArg}`, {
     cwd: project,
