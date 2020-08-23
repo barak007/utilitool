@@ -324,10 +324,14 @@ function createPackageJson(
   rootPackageJSON: PackageJson,
   packageData: PackageData
 ) {
+  const dependencies: Record<string, string> = {};
+  for (const [name, version] of packageData.dependencies) {
+    dependencies[name] = rootPackageJSON.dependencies?.[name] ?? "^" + version;
+  }
   return copyDefinedKeys(
     {
       name: packageData.name,
-      dependencies: Object.fromEntries(packageData.dependencies.entries()),
+      dependencies,
       main: "index.js",
     },
     rootPackageJSON,
